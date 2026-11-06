@@ -2,7 +2,13 @@
 
 Legend: `[ ]` not started · `[~]` written, untested · `[x]` built **and** tested on hardware
 
+## Phase 0: Toolchain
+- [ ] Clone `meshtastic/firmware` into `./firmware` (gitignored)
+- [ ] Unmodified `heltec-v4` env builds with PlatformIO
+- [ ] `scripts/install_module`: copies `module/Tether/` into `firmware/src/modules/optional/`
+
 ## Phase 1: Core link module (MVP)
+Fixed pair of known nodes (each board is configured with the peer's node ID). Packet format and data flow go in `docs/DESIGN_NOTES.md` before code.
 - [ ] Module skeleton: `SinglePortModule` + `OSThread` on `PRIVATE_APP` (port 256), registered via `OPTIONAL_MODULES_SETUP`
 - [ ] Active ping/reply, hop_limit 0, gated by `airTime->isTxAllowedChannelUtil()`
 - [ ] Passive RSSI/SNR logging from normal traffic
@@ -14,8 +20,13 @@ Legend: `[ ]` not started · `[~]` written, untested · `[x]` built **and** test
 
 ## Phase 2: Feedback
 - [ ] Scrolling RSSI/SNR graph on OLED (UI style TBD, see Open Decisions)
-- [ ] Proximity tone: pitch/rate follows signal
+- [ ] Proximity tone: pitch/rate follows signal (blocked: buzzer GPIO not chosen yet; compiled out until then)
 - [ ] GPS-tagged signal log for fox-hunting (V4 GNSS header)
+  - [ ] Log HDOP, satellite count and fix type per sample
+  - [ ] Drop samples with HDOP above ~2 or fewer than ~6 satellites
+  - [ ] Smooth position
+  - [ ] Higher local fix rate while fox-hunting
+  - [ ] Timestamp samples from the GNSS fix
 
 ## Phase 3: Power
 - [ ] Smoothed VBAT
@@ -26,7 +37,7 @@ Legend: `[ ]` not started · `[~]` written, untested · `[x]` built **and** test
 - [ ] Optional INA219/226/260 coulomb counting (mA/mAh)
 
 ## Phase 4: Export and sweeps
-- [ ] Serial/MQTT lines formatted for InfluxDB/Grafana (self-hosted)
+- [ ] Serial/MQTT lines in InfluxDB line protocol for Grafana (self-hosted)
 - [ ] Automated preset / TX-power sweep for range tests
 
 ## Phase 4b: Laptop-side logger and dashboard (companion tools)
@@ -40,10 +51,18 @@ Runs on a laptop connected to a node (serial/USB, or TCP). Separate from the fir
   - [ ] Max distance reached
   - [ ] Message history with signal info per message
 - [ ] Optionally ingest TETHER's port-256 link stats once Phase 1 exists, alongside normal traffic
+- [ ] Testable without hardware: replay a sample dataset, clearly labelled as synthetic
 - [ ] Screenshots / sample dataset from a real range test (only once actually run)
 
+## Phase 4c: Mobile web app (PWA)
+No native iOS app. The dashboard becomes a mobile-first PWA, self-hosted.
+- [ ] Mobile-first layout
+- [ ] Web app manifest and icons; add to iOS Home Screen
+- [ ] Served over LAN / Tailscale (no paid cloud)
+- [ ] Optional phone geolocation as a position source, matched to RSSI samples by timestamp
+
 ## Phase 5: Verify
-- [ ] Compile with PlatformIO (`heltec-v4`, and `heltec-v4-tft` if chosen)
+- [ ] Compile with PlatformIO (`heltec-v4`)
 - [ ] Hardware test on two V4 boards
 - [ ] Run logger/dashboard against a real range test
 - [ ] Record plainly what remains untested
@@ -54,9 +73,12 @@ Runs on a laptop connected to a node (serial/USB, or TCP). Separate from the fir
 - Self-hosted, no paid cloud services.
 - Absolute RSSI is not comparable across V4.2 / V4.3 / V3; use relative changes on the same hardware.
 
+## Decisions
+- [x] Pairing: **fixed pair of known nodes** (any-node out of scope for now)
+- [x] Target env: **OLED, `heltec-v4`** (TFT not targeted)
+- [x] Phone interface: **mobile-first web app / PWA** (Phase 4c); no native app, stock Meshtastic app will not show TETHER data
+- [x] Name: **TETHER**, repo **`heltec-v4-tether`**
+
 ## Open Decisions (to resolve, not assume)
-- [ ] Fixed pair of known nodes, or any node in range?
-- [ ] OLED env or TFT env?
-- [ ] Phone-app display (large extra job) or OLED/serial/MQTT only?
-- [ ] Buzzer: passive buzzer on which free GPIO?
-- [ ] Final project name and repo name (currently `meshtastic-tether`; repo is `heltec-v4-tether`)
+- [ ] Buzzer: passive buzzer on which free GPIO? Deferred; no buzzer for now.
+- [ ] OLED UI look: propose 2-3 neo-brutalist sketches and ask before building (Phase 2)
