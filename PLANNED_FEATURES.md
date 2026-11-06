@@ -3,9 +3,10 @@
 Legend: `[ ]` not started · `[~]` written, untested · `[x]` built **and** tested on hardware
 
 ## Phase 0: Toolchain
-- [ ] Clone `meshtastic/firmware` into `./firmware` (gitignored)
-- [ ] Unmodified `heltec-v4` env builds with PlatformIO
-- [ ] `scripts/install_module`: copies `module/Tether/` into `firmware/src/modules/optional/`
+See [docs/BUILD.md](docs/BUILD.md). Compile-only items have no hardware part; `[x]` there means the build was run and succeeded.
+- [x] Clone `meshtastic/firmware`, pinned to `v2.8.2.d5f1619` (first hook-capable line is 2.8.1; all 2.8.x are pre-releases). `./firmware` is gitignored; a path without spaces is required, so `TETHER_FIRMWARE_DIR` can point elsewhere
+- [x] Unmodified `heltec-v4` env builds with PlatformIO (2026-11-05, Windows; not flashed)
+- [~] `scripts/install_module.py`: copies `module/Tether/` into `src/modules/optional/`. Tested against throwaway directory trees only; not yet exercised with a real module in a real build
 
 ## Phase 1: Core link module (MVP)
 Fixed pair of known nodes (each board is configured with the peer's node ID). Packet format and data flow go in `docs/DESIGN_NOTES.md` before code.

@@ -2,7 +2,7 @@
 
 A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3R2, SX1262 + front-end module), plus a laptop logger and a mobile web app.
 
-> **Status: planning only.** Nothing here has been written as firmware, built, or tested yet.
+> **Status: Phase 0 (toolchain) done.** A stock `heltec-v4` build compiles; no TETHER firmware has been written, built, or tested yet.
 > Do not assume any feature works until it is marked tested in [PLANNED_FEATURES.md](PLANNED_FEATURES.md).
 
 ## What it adds
@@ -28,15 +28,16 @@ A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3
 module/Tether/   module source, copied into a firmware checkout (empty for now)
 tools/           laptop-side logger.py and dashboard.py (planned, not created yet)
 docs/            design notes, open decisions
-scripts/         helper scripts (e.g. install module into a firmware checkout)
+scripts/         install_module.py (copies the module into a firmware checkout)
 PLANNED_FEATURES.md
 ```
 This is a standalone repo that copies the module into a Meshtastic firmware checkout. It is **not** a fork.
 
-## Getting started (planned)
-1. Clone Meshtastic firmware into `./firmware` inside this repo (gitignored).
-2. Run the (not yet written) install script to copy `module/Tether/` into `firmware/src/modules/optional/`.
-3. `cd firmware && pio run -e heltec-v4`
+## Getting started
+Full steps and Windows gotchas: [docs/BUILD.md](docs/BUILD.md).
+1. Clone Meshtastic firmware **v2.8.2.d5f1619** (needs ≥ v2.8.1 for the optional-module hook) into `./firmware` (gitignored), or anywhere without spaces in the path and set `TETHER_FIRMWARE_DIR`.
+2. `python scripts/install_module.py` copies `module/Tether/` into the checkout's `src/modules/optional/`.
+3. `cd <firmware> && pio run -e heltec-v4`
 
 ## Principles
 - MVP (phase 1) working end to end before polishing later phases. Architecture and data flow first, UI last.
