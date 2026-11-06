@@ -131,6 +131,14 @@ def generate(seed: int = 7, minutes: float = 50.0, t0: float = 1762412400.0):
             log(t, "INFO  | [Tether] TETHER stats peer=%s role=initiator sent=%d replies=%d pdr32=%.2f window=%d "
                    "backoff=1 skipped=0 passive=0 rssi_ewma=na snr_ewma=na rpt_rssi_ewma=na rpt_snr_ewma=na"
                 % (nid(PEER_NUM), sent, replies, pdr, len(window)))
+            # Base node battery: 92 % at the start, draining 6 %/h; trend needs 15 min of history, like the firmware.
+            hours = (t - t0) / 3600.0
+            pct = 92.0 - 6.0 * hours
+            mv = 3300 + 9 * pct
+            trend = "-6.00" if t - t0 >= 15 * 60 else "na"
+            runtime = "%.1f" % (pct / 6.0) if t - t0 >= 15 * 60 else "na"
+            log(t, "INFO  | [Tether] TETHER power vbat_mv=%d vbat_ewma=%.0f pct=%.1f usb=0 charging=0 trend_pct_h=%s "
+                   "runtime_h=%s mult=1" % (mv, mv, pct, trend, runtime))
             next_stats += 60
         else:  # ping
             ping_seq = seq
@@ -148,12 +156,14 @@ def generate(seed: int = 7, minutes: float = 50.0, t0: float = 1762412400.0):
                 replies += 1
                 tr = t + 1.3
                 events.append(pkt(tr, "PRIVATE_APP", {}, rx=(rssi_b, snr_b), to=LOCAL_NUM, hops=0))
+                # The base's own GPS fix, as the firmware's TETHER_GPS_TAG appends it.
+                gps = " lat=%.6f lon=%.6f alt=1609 hdop=0.90 sats=11 fix=3 gps_t=%d gps=ok" % (BASE_LAT, BASE_LON, int(tr))
                 ms, mr = margins(rssi_b, snr_b)
                 log(tr, "INFO  | [Tether] TETHER rx kind=reply peer=%s seq=%d rssi=%d snr=%.2f margin_snr=%.2f "
-                        "margin_rssi=%.1f" % (nid(PEER_NUM), ping_seq, rssi_b, snr_b, ms, mr))
+                        "margin_rssi=%.1f%s" % (nid(PEER_NUM), ping_seq, rssi_b, snr_b, ms, mr, gps))
                 ms, mr = margins(rssi_f, snr_f)
                 log(tr, "INFO  | [Tether] TETHER rpt kind=ping peer=%s seq=%d rssi=%d snr=%.2f margin_snr=%.2f "
-                        "margin_rssi=%.1f" % (nid(PEER_NUM), ping_seq, rssi_f, snr_f, ms, mr))
+                        "margin_rssi=%.1f%s" % (nid(PEER_NUM), ping_seq, rssi_f, snr_f, ms, mr, gps))
             next_ping += PING_MS / 1000.0 * (0.9 + 0.2 * rng.random())
 
     head, body = events[:2], events[2:]

@@ -27,6 +27,7 @@ class Ingestor:
         self.session = session
         self.local_node = local_node
         self.counts = {"packets": 0, "positions": 0, "texts": 0, "tether": 0}
+        self._last_tether_fix = None
 
     def set_local_node(self, local_node: str) -> None:
         self.local_node = local_node
@@ -73,8 +74,18 @@ class Ingestor:
         parsed = parse_tether_line(line)
         if not parsed:
             return False
-        self.store.add_tether(self.session, time.time() if t is None else t, self.local_node, parsed)
+        t = time.time() if t is None else t
+        self.store.add_tether(self.session, t, self.local_node, parsed)
         self.counts["tether"] += 1
+
+        # GPS-tagged samples (firmware TETHER_GPS_TAG): the attached node's own smoothed fix, already quality-gated.
+        if parsed.get("event") in ("rx", "rpt") and parsed.get("gps") in ("ok", "fixed"):
+            lat, lon = parsed.get("lat"), parsed.get("lon")
+            if isinstance(lat, float) and isinstance(lon, float) and (lat, lon) != self._last_tether_fix:
+                self.store.add_position(self.session, t, self.local_node or "local", lat, lon, "tether-gps",
+                                        alt=parsed.get("alt"), sats=parsed.get("sats"), dop=parsed.get("hdop"))
+                self._last_tether_fix = (lat, lon)
+                self.counts["positions"] += 1
         return True
 
     def ingest_phone_position(self, lat: float, lon: float, accuracy_m: Optional[float] = None,

@@ -136,13 +136,17 @@ def messages(store: Store, limit: int = 100) -> List[Dict]:
     return sorted(rx + tx, key=lambda r: r["t"], reverse=True)[:limit]
 
 
-def latest_stats(store: Store) -> Optional[Dict]:
-    rows = store.query("SELECT t, fields FROM tether WHERE event='stats' ORDER BY t DESC LIMIT 1")
+def latest_event(store: Store, event: str) -> Optional[Dict]:
+    rows = store.query("SELECT t, fields FROM tether WHERE event=? ORDER BY t DESC LIMIT 1", (event,))
     if not rows:
         return None
     out = json.loads(rows[0]["fields"])
     out["t"] = rows[0]["t"]
     return out
+
+
+def latest_stats(store: Store) -> Optional[Dict]:
+    return latest_event(store, "stats")
 
 
 def summary(store: Store, peer: Optional[str] = None) -> Dict:
@@ -166,6 +170,7 @@ def summary(store: Store, peer: Optional[str] = None) -> Dict:
         "last_rx": last,
         "last_distance": dist[-1] if dist else None,
         "tether_stats": latest_stats(store),
+        "power": latest_event(store, "power"),
         "counts": counts,
         "base": base_position(store),
     }

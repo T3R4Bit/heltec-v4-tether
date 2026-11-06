@@ -176,8 +176,18 @@ function renderSummary(sum) {
   } else {
     $("#t-pdr").textContent = "–";
   }
-  $("#t-pkts").textContent = sum.counts.packets;
-  $("#t-pos").textContent = `positions ${sum.counts.positions}`;
+  const pw = sum.power;
+  if (pw && pw.pct != null) {
+    $("#t-pkts").textContent = `${Math.round(pw.pct)}%`;
+    $("#t-pkts-k").textContent = "Node battery";
+    const parts = [pw.charging ? "charging" : pw.runtime_h != null ? `~${fmtNum(pw.runtime_h, 1)} h left` : "on battery"];
+    if (pw.vbat_ewma != null) parts.push(`${(pw.vbat_ewma / 1000).toFixed(2)} V`);
+    $("#t-pos").textContent = parts.join(" · ");
+  } else {
+    $("#t-pkts").textContent = sum.counts.packets;
+    $("#t-pkts-k").textContent = "Packets";
+    $("#t-pos").textContent = `positions ${sum.counts.positions}`;
+  }
 }
 
 function renderSignal(sig) {

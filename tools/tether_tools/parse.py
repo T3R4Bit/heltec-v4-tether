@@ -11,7 +11,8 @@ _KV_RE = re.compile(r"([a-z_0-9]+)=(\S+)")
 
 _INT_FIELDS = {"seq", "rssi", "port", "sent", "replies", "heard", "replied", "missed", "restarts", "skipped", "passive",
                "window", "backoff", "interval_ms", "airtime_ms", "missed_total", "version", "budget_pct",
-               "min_interval_ms", "code", "result", "hop_start", "hop_limit"}
+               "min_interval_ms", "code", "result", "hop_start", "hop_limit", "sats", "fix", "gps_t", "alt",
+               "vbat_mv", "usb", "charging", "mult", "power"}
 
 
 def _coerce(key: str, value: str):

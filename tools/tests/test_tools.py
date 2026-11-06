@@ -103,6 +103,31 @@ class IngestTests(TempDB):
         self.assertEqual([n["id"] for n in analysis.nodes(self.store, "!0a0b0c0d")], ["!1a2b3c4d"])
         self.assertEqual(len(analysis.signal_series(self.store, "!1a2b3c4d")["rx"]), 3)
 
+    def test_gps_tagged_lines_become_positions(self):
+        s = self.store.new_session("live")
+        ing = Ingestor(self.store, s, "!0a0b0c0d")
+        tag = " lat=39.739200 lon=-104.990300 alt=1609 hdop=0.90 sats=11 fix=3 gps_t=1762412431 gps=ok"
+        ing.ingest_log_line("TETHER rx kind=reply peer=!1a2b3c4d seq=1 rssi=-91 snr=6.25" + tag, 10.0)
+        ing.ingest_log_line("TETHER rpt kind=ping peer=!1a2b3c4d seq=1 rssi=-93 snr=5.0" + tag, 10.0)  # same fix
+        ing.ingest_log_line("TETHER rx kind=reply peer=!1a2b3c4d seq=2 rssi=-91 snr=6.25 gps=hdop sats=7 hdop=3.10", 20.0)
+        rows = self.store.query("SELECT * FROM positions")
+        self.assertEqual(len(rows), 1)  # duplicate fix skipped, poor fix ignored
+        self.assertEqual((rows[0]["node_id"], rows[0]["source"], rows[0]["sats"]), ("!0a0b0c0d", "tether-gps", 11))
+        self.assertAlmostEqual(rows[0]["dop"], 0.9)
+        p = json.loads(self.store.query("SELECT fields FROM tether WHERE seq=2")[0]["fields"])
+        self.assertEqual((p["gps"], p["sats"]), ("hdop", 7))
+
+    def test_power_line_in_summary(self):
+        s = self.store.new_session("live")
+        ing = Ingestor(self.store, s, "!0a0b0c0d")
+        ing.ingest_log_line("TETHER power vbat_mv=3950 vbat_ewma=3948 pct=81.5 usb=0 charging=0 trend_pct_h=-6.00 "
+                            "runtime_h=13.6 mult=1", 30.0)
+        pw = analysis.summary(self.store)["power"]
+        self.assertEqual(pw["vbat_mv"], 3950)
+        self.assertAlmostEqual(pw["pct"], 81.5)
+        self.assertAlmostEqual(pw["runtime_h"], 13.6)
+        self.assertEqual(pw["charging"], 0)
+
     def test_log_lines(self):
         s = self.store.new_session("live")
         ing = Ingestor(self.store, s, "!0a0b0c0d")
