@@ -195,6 +195,61 @@ class SyntheticReplayTests(TempDB):
         self.assertAlmostEqual(d[0]["d_m"], 1112, delta=5)
 
 
+class ImportLogTests(TempDB):
+    LOG = [
+        "INFO  | 23:59:58 100 [Tether] TETHER boot node=!0a0b0c0d version=1 budget_pct=10 min_interval_ms=2000 "
+        "build_peer=!00000000",
+        "DEBUG | 23:59:59 101 [Router] Lora RX something unrelated",
+        "INFO  | 23:59:59 102 [Tether] TETHER peer peer=!1a2b3c4d role=initiator source=favorite",
+        "INFO  | 00:00:05 103 [Tether] TETHER rx kind=reply peer=!1a2b3c4d seq=0 rssi=-80 snr=9.00 margin_snr=26.50 "
+        "margin_rssi=51.5 gps=nofix sats=0 hdop=0.00",
+        "INFO  | 00:00:17 104 [Tether] TETHER rx kind=reply peer=!1a2b3c4d seq=1 rssi=-95 snr=2.00 margin_snr=19.50 "
+        "margin_rssi=36.5 lat=39.745000 lon=-104.990300 alt=1609 hdop=0.90 sats=9 fix=3 gps_t=1762473617 gps=ok",
+        "TETHER rx kind=reply peer=!1a2b3c4d seq=2 rssi=-99 snr=-1.00",  # no clock, no gps_t: previous + 1 s
+    ]
+
+    # 2025-11-06 23:59:58 UTC; gps_t 1762473617 is 2025-11-07 00:00:17 UTC, consistent with the log clock.
+    DATE_MIDNIGHT_UTC = 1762387200.0
+
+    def test_import_timestamps_and_node(self):
+        import datetime as dt
+        from tether_tools.importlog import import_lines
+        ing = import_lines(self.store, self.LOG, dt.date(2025, 11, 6))
+        self.assertEqual(ing.counts["tether"], 5)  # the Router line is not a TETHER line
+        self.assertEqual(analysis.local_node(self.store), "!0a0b0c0d")
+        rows = self.store.query("SELECT t, event, seq FROM tether ORDER BY id")
+        self.assertEqual(rows[0]["t"], self.DATE_MIDNIGHT_UTC + 86398)
+        self.assertEqual(rows[2]["t"], self.DATE_MIDNIGHT_UTC + 86400 + 5)  # rolled over midnight
+        self.assertEqual(rows[3]["t"], 1762473617.0)
+        self.assertEqual(rows[4]["t"], 1762473618.0)  # no clock, no gps_t: previous + 1 s
+        # Log-only data still produces a signal series and a peer.
+        sig = analysis.signal_series(self.store, "!1a2b3c4d")
+        self.assertEqual([r["rssi"] for r in sig["rx"]], [-80, -95, -99])
+        self.assertEqual(analysis.summary(self.store)["peer"], "!1a2b3c4d")
+
+    def test_gnss_time_calibrates_a_local_time_clock(self):
+        import datetime as dt
+        from tether_tools.importlog import import_lines
+        # Same log, but the device clock printed local time one hour ahead of UTC.
+        shifted = [ln.replace("23:59:58", "00:59:58").replace("23:59:59", "00:59:59").replace("00:00:05", "01:00:05")
+                   .replace("00:00:17", "01:00:17") for ln in self.LOG]
+        import_lines(self.store, shifted, dt.date(2025, 11, 7))
+        ts = [r["t"] for r in self.store.query("SELECT t FROM tether ORDER BY id")]
+        self.assertEqual(ts[0], self.DATE_MIDNIGHT_UTC + 86398)  # pulled back onto UTC by the gps_t line
+        self.assertEqual(ts[3], 1762473617.0)
+        self.assertEqual(ts, sorted(ts))
+
+    def test_fixed_peer_position_gives_distance(self):
+        import datetime as dt
+        from tether_tools.importlog import import_lines
+        import_lines(self.store, self.LOG, dt.date(2025, 11, 6))
+        self.assertEqual(analysis.distance_series(self.store, "!0a0b0c0d", "!1a2b3c4d"), [])
+        analysis.set_peer_position(self.store, 39.7392, -104.9903)
+        d = analysis.distance_series(self.store, "!0a0b0c0d", "!1a2b3c4d")
+        self.assertEqual(len(d), 3)  # all three rx samples are within 120 s of the one GPS-tagged local fix
+        self.assertAlmostEqual(d[0]["d_m"], 645, delta=5)
+
+
 class LineProtocolTests(TempDB):
     def test_line_format_and_escaping(self):
         ln = lineproto.line("tether_rx", {"peer": "!1a", "kind": "re ply", "empty": None}, {"rssi": -91, "snr": 6.25,

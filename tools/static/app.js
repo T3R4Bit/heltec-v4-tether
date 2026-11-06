@@ -123,6 +123,10 @@ function drawMap(trk) {
     L.circleMarker(peerLine[peerLine.length - 1], { radius: 8, color: "#111", weight: 2, fillColor: s2, fillOpacity: 1 })
       .bindTooltip("peer").addTo(state.layers);
     bounds.push(...peerLine);
+  } else if (trk.peer_fixed) {
+    L.circleMarker(trk.peer_fixed, { radius: 8, color: "#111", weight: 2, fillColor: s2, fillOpacity: 1 })
+      .bindTooltip("peer (fixed)").addTo(state.layers);
+    bounds.push(trk.peer_fixed);
   }
   const here = localPts.length ? localPts[localPts.length - 1] : trk.base;
   if (here) {
@@ -130,7 +134,7 @@ function drawMap(trk) {
       .bindTooltip(localPts.length ? "this node" : "base (fixed)").addTo(state.layers);
     bounds.push(here);
   }
-  $("#map-hint").textContent = peerLine.length ? "" : "No peer positions yet. The peer needs GPS (or a fixed position) and position sharing on.";
+  $("#map-hint").textContent = peerLine.length || trk.peer_fixed ? "" : "No peer positions yet. The peer needs GPS and position sharing on, or set one with logger.py --peer-pos.";
   if (bounds.length && !state.fitted) {
     state.map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
     state.fitted = true;

@@ -13,6 +13,11 @@ Replay (no hardware):
     python tools/logger.py --replay synth.jsonl --db demo.db             # instant
     python tools/logger.py --replay synth.jsonl --db demo.db --speed 20  # 20x real time, for watching the dashboard
 
+Node not in API mode (plain serial console), or a log saved earlier:
+    python tools/logger.py --raw-serial COM5 --db walk.db       # stores TETHER lines only, no packets
+    python tools/logger.py --import-log monitor.txt --date 2026-11-07 --db walk.db
+    python tools/logger.py --db walk.db --peer-pos 39.74,-104.99 # stationary peer (fox) without GPS
+
 Export to InfluxDB line protocol (self-hosted InfluxDB/Grafana):
     python tools/logger.py --db rangetest.db --export-lp rangetest.lp
 """
@@ -153,6 +158,36 @@ def live(store: Store, args) -> None:
         iface.close()
 
 
+def raw_serial(store: Store, port: str, baud: int) -> None:
+    """Read the node's plain serial console (no API) and store the TETHER lines."""
+    try:
+        import serial  # pyserial, installed with the meshtastic package
+    except ImportError:
+        sys.exit("logger: --raw-serial needs pyserial: pip install -r tools/requirements.txt")
+    session = store.new_session("raw-serial", note="raw serial %s" % port)
+    ing = Ingestor(store, session)
+    print("logger: reading %s at %d baud, storing TETHER lines (Ctrl+C to stop)" % (port, baud))
+    with serial.Serial(port, baud, timeout=1) as ser:
+        try:
+            while True:
+                raw = ser.readline()
+                if not raw:
+                    continue
+                line = raw.decode("utf-8", errors="replace").rstrip()
+                if ing.ingest_log_line(line):
+                    print("log " + line[line.find("TETHER"):])
+        except KeyboardInterrupt:
+            pass
+    print("logger: stored %d TETHER lines" % ing.counts["tether"])
+
+
+def _latlon(s: str):
+    lat, lon = (float(x) for x in s.split(","))
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        raise ValueError("lat/lon out of range: %s" % s)
+    return lat, lon
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", default="tether.db", help="SQLite file (default tether.db)")
@@ -160,22 +195,39 @@ def main():
     src.add_argument("--port", help="serial port of the node, e.g. COM5 or /dev/ttyUSB0 (default: auto-detect)")
     src.add_argument("--host", help="hostname/IP of a node with the TCP API enabled")
     src.add_argument("--replay", help="JSONL dataset to replay instead of connecting to a node")
+    src.add_argument("--raw-serial", metavar="PORT", help="read a node's plain serial console (TETHER lines only)")
+    src.add_argument("--import-log", metavar="FILE", help="import TETHER lines from a saved serial log")
     src.add_argument("--export-lp", metavar="FILE", help="write the database as InfluxDB line protocol and exit")
     ap.add_argument("--speed", type=float, default=0.0, help="replay speed multiplier (0 = instant)")
+    ap.add_argument("--baud", type=int, default=115200, help="baud rate for --raw-serial")
+    ap.add_argument("--date", help="date of an imported log, YYYY-MM-DD (default: the file's modification date)")
+    ap.add_argument("--node", help="node id of the board that printed an imported log, e.g. !0a0b0c0d")
     ap.add_argument("--base", metavar="LAT,LON", help="fixed position of the attached node, if it has no GPS")
+    ap.add_argument("--peer-pos", metavar="LAT,LON", help="fixed position of the peer, if it reports none")
     args = ap.parse_args()
 
     store = Store(args.db)
+    from tether_tools import analysis
     if args.base:
-        from tether_tools.analysis import set_base_position
-        lat, lon = (float(x) for x in args.base.split(","))
-        set_base_position(store, lat, lon)
+        analysis.set_base_position(store, *_latlon(args.base))
+    if args.peer_pos:
+        analysis.set_peer_position(store, *_latlon(args.peer_pos))
     try:
-        if args.export_lp:
+        if args.import_log:
+            import datetime as dt
+            from tether_tools.importlog import import_file
+            date = dt.date.fromisoformat(args.date) if args.date else None
+            ing = import_file(store, args.import_log, date, args.node)
+            print("logger: imported %s" % ing.counts)
+        elif args.raw_serial:
+            raw_serial(store, args.raw_serial, args.baud)
+        elif args.export_lp:
             n = lineproto.write_file(lineproto.export(store), args.export_lp)
             print("logger: wrote %d lines to %s" % (n, args.export_lp))
         elif args.replay:
             replay(store, args.replay, args.speed)
+        elif (args.base or args.peer_pos) and not (args.port or args.host):
+            print("logger: saved fixed position(s) in %s" % args.db)  # with --port/--host it goes on to log live
         else:
             live(store, args)
     finally:

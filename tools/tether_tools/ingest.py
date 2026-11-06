@@ -75,6 +75,8 @@ class Ingestor:
         if not parsed:
             return False
         t = time.time() if t is None else t
+        if parsed.get("event") == "boot" and isinstance(parsed.get("node"), str) and not self.local_node:
+            self.set_local_node(parsed["node"])  # firmware prints its own node id at boot
         self.store.add_tether(self.session, t, self.local_node, parsed)
         self.counts["tether"] += 1
 

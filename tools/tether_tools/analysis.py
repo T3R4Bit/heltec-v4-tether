@@ -19,18 +19,37 @@ def local_node(store: Store) -> Optional[str]:
     return rows[0]["local_node"] if rows else None
 
 
-def base_position(store: Store) -> Optional[Tuple[float, float]]:
-    rows = {r["key"]: r["value"] for r in store.query("SELECT key, value FROM meta WHERE key IN ('base_lat','base_lon')")}
-    if "base_lat" in rows and "base_lon" in rows:
-        return float(rows["base_lat"]), float(rows["base_lon"])
+def _fixed_position(store: Store, prefix: str) -> Optional[Tuple[float, float]]:
+    keys = (prefix + "_lat", prefix + "_lon")
+    rows = {r["key"]: r["value"] for r in store.query("SELECT key, value FROM meta WHERE key IN (?, ?)", keys)}
+    if keys[0] in rows and keys[1] in rows:
+        return float(rows[keys[0]]), float(rows[keys[1]])
     return None
 
 
-def set_base_position(store: Store, lat: float, lon: float) -> None:
+def _set_fixed_position(store: Store, prefix: str, lat: float, lon: float) -> None:
     with store._lock:
         store.conn.executemany("INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)",
-                               [("base_lat", str(lat)), ("base_lon", str(lon))])
+                               [(prefix + "_lat", str(lat)), (prefix + "_lon", str(lon))])
         store.conn.commit()
+
+
+def base_position(store: Store) -> Optional[Tuple[float, float]]:
+    """Fixed position of the attached node, for when it has no GPS."""
+    return _fixed_position(store, "base")
+
+
+def set_base_position(store: Store, lat: float, lon: float) -> None:
+    _set_fixed_position(store, "base", lat, lon)
+
+
+def peer_position(store: Store) -> Optional[Tuple[float, float]]:
+    """Fixed position of the peer (e.g. a stationary fox), used when the peer reports no positions."""
+    return _fixed_position(store, "peer")
+
+
+def set_peer_position(store: Store, lat: float, lon: float) -> None:
+    _set_fixed_position(store, "peer", lat, lon)
 
 
 def nodes(store: Store, local: Optional[str]) -> List[Dict]:
@@ -65,6 +84,10 @@ def signal_series(store: Store, peer: str, since: float = 0.0) -> Dict[str, List
         "AND hop_start = hop_limit AND t > ? ORDER BY t",
         (peer, since),
     )
+    if not rx:
+        # Log-only data (imported serial log, --raw-serial): the node's own TETHER rx lines carry the same measurement.
+        rx = store.query("SELECT t, rssi, snr, kind AS portnum FROM tether WHERE event='rx' AND peer=? "
+                         "AND rssi IS NOT NULL AND t > ? ORDER BY t", (peer, since))
     rpt = store.query(
         "SELECT t, rssi, snr, seq FROM tether WHERE event='rpt' AND peer=? AND t > ? ORDER BY t", (peer, since)
     )
@@ -106,9 +129,12 @@ def distance_series(store: Store, local: Optional[str], peer: str, window: float
     local_track = _Track(track(store, local)) if local else _Track([])
     phone_track = _Track(track(store, "phone"))
     base = base_position(store)
+    peer_fixed = peer_position(store)
     out = []
     for s in signal_series(store, peer)["rx"]:
         p = peer_track.nearest(s["t"], window)
+        if not p and peer_fixed:
+            p = {"lat": peer_fixed[0], "lon": peer_fixed[1]}
         if not p:
             continue
         l = local_track.nearest(s["t"], window) or phone_track.nearest(s["t"], window)
@@ -158,9 +184,8 @@ def summary(store: Store, peer: Optional[str] = None) -> Dict:
                          "(SELECT COUNT(*) FROM tether) AS tether, (SELECT COUNT(*) FROM sessions) AS sessions")[0]
     last = None
     if peer:
-        rows = store.query("SELECT t, rssi, snr FROM packets WHERE from_id=? AND rssi IS NOT NULL AND via_mqtt=0 "
-                           "AND hop_start = hop_limit ORDER BY t DESC LIMIT 1", (peer,))
-        last = rows[0] if rows else None
+        rx = signal_series(store, peer)["rx"]
+        last = rx[-1] if rx else None
     return {
         "synthetic": is_synthetic(store),
         "local_node": local,

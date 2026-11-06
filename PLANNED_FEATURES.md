@@ -53,7 +53,7 @@ Firmware compiles; pure logic host-tested; not run on a board. Uses Meshtastic's
   which risks stranding them on different presets; wants hardware to develop against)
 
 ## Phase 4b: Laptop-side logger and dashboard (companion tools)
-Lives in [`tools/`](tools/README.md). Python, local SQLite, self-hosted. **Tested without hardware only**: 20 unit tests,
+Lives in [`tools/`](tools/README.md). Python, local SQLite, self-hosted. **Tested without hardware only**: 25 unit tests,
 synthetic replay, and a real-browser end-to-end test (headless Edge via Playwright, phone and desktop sizes, no JS
 errors). Nothing has been run against a real node yet, so items stay `[~]`.
 - [~] `logger.py`: record everything the connected node hears (messages, positions, RSSI/SNR, TETHER lines) into SQLite with timestamps (live path checked against the installed `meshtastic` 2.7.11 API, not run against a node)
@@ -65,6 +65,8 @@ errors). Nothing has been run against a real node yet, so items stay `[~]`.
   - [~] Max distance reached (only counts packets actually received)
   - [~] Message history with signal info per message
 - [~] Ingest TETHER's link stats (`TETHER` log lines via `security.debug_log_api_enabled`)
+- [~] Without the API: `--raw-serial PORT` and `--import-log FILE` store TETHER lines (GPS tags become positions);
+  `--peer-pos` for a stationary peer. Unit-tested with sample log text; not run against a real serial port
 - [x] Testable without hardware: `tools/synth.py` generates a link-model dataset, replay marks it synthetic, dashboard shows a banner
 - [ ] Screenshots / sample dataset from a real range test (only once actually run; current screenshots are synthetic and say so)
 

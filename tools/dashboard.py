@@ -95,7 +95,8 @@ def make_handler(app: App):
                     peer = q.get("peer") or analysis.pick_peer(s, local)
                     self._json({"peer": analysis.track(s, peer) if peer else [],
                                 "local": analysis.track(s, local) if local else [],
-                                "phone": analysis.track(s, "phone"), "base": analysis.base_position(s)})
+                                "phone": analysis.track(s, "phone"), "base": analysis.base_position(s),
+                                "peer_fixed": analysis.peer_position(s)})
                 elif url.path == "/api/messages":
                     self._json(analysis.messages(s, int(q.get("limit", 100))))
                 elif url.path in ("/", "/index.html"):

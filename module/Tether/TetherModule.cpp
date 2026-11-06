@@ -65,8 +65,9 @@ int32_t TetherModule::runOnce()
         booted = true;
         if (config.device.rebroadcast_mode == meshtastic_Config_DeviceConfig_RebroadcastMode_CORE_PORTNUMS_ONLY)
             LOG_WARN("TETHER warn reason=core_portnums_only detail=port_256_dropped_before_modules");
-        LOG_INFO("TETHER boot version=%u budget_pct=%u min_interval_ms=%u build_peer=!%08x", (unsigned)PROTOCOL_VERSION,
-                 (unsigned)TETHER_AIRTIME_BUDGET_PCT, (unsigned)TETHER_MIN_INTERVAL_MS, (unsigned)TETHER_PEER_NODENUM);
+        LOG_INFO("TETHER boot node=!%08x version=%u budget_pct=%u min_interval_ms=%u build_peer=!%08x",
+                 (unsigned)nodeDB->getNodeNum(), (unsigned)PROTOCOL_VERSION, (unsigned)TETHER_AIRTIME_BUDGET_PCT,
+                 (unsigned)TETHER_MIN_INTERVAL_MS, (unsigned)TETHER_PEER_NODENUM);
         return MESHMODULE_MIN_BROADCAST_DELAY_MS;
     }
 

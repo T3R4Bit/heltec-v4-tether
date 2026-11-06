@@ -34,6 +34,17 @@ link model, not a measurement. Never present it as range-test results.
 
 Terminal commands while logging: type text + Enter to broadcast, `/dm !1a2b3c4d text` to DM, `/quit` to stop.
 
+### Without the API (serial console or a saved log)
+If a board isn't connected through the Meshtastic API (for example the carried board on a fox hunt, logged with
+`pio device monitor > walk.txt`), its own `TETHER` lines are enough for signal and, with GPS tags, position:
+```sh
+python tools/logger.py --raw-serial COM5 --db walk.db                       # live, TETHER lines only
+python tools/logger.py --import-log walk.txt --date 2026-11-07 --db walk.db # afterwards
+python tools/logger.py --db walk.db --peer-pos 39.7392,-104.9903            # where the stationary peer was
+```
+The log clock is read as UTC on `--date`; GPS-tagged lines (`gps_t`) correct it automatically if the device clock was
+on local time. The dashboard uses these lines when the database has no packet records.
+
 ## Phone (PWA)
 - Same Wi-Fi: `--host 0.0.0.0`, then open `http://<laptop-ip>:8080` on the phone.
 - Anywhere, privately: [Tailscale](https://tailscale.com) on laptop and phone, then `tailscale serve --bg 8080` and open
@@ -62,6 +73,6 @@ Measurements: `tether_rx`, `tether_rpt`, `tether_tx`, `tether_stats`, `tether_sk
 
 ## Tests
 ```sh
-python -m unittest discover -s tools/tests -v          # 20 tests, standard library only
+python -m unittest discover -s tools/tests -v          # 25 tests, standard library only
 python tools/tests/e2e_dashboard.py --shots docs/screenshots   # real browser (Playwright + Edge/Chrome), synthetic data
 ```
