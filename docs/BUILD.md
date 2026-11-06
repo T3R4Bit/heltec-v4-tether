@@ -52,3 +52,9 @@ python -m platformio run -e heltec-v4
 | Date | Firmware | Env | Module | Result |
 |---|---|---|---|---|
 | 2026-11-05 | v2.8.2.d5f1619 | heltec-v4 | none (stock) | SUCCESS. Flash 35.0% (2,295,431 B), RAM 4.7% (98,480 B). Not flashed to a board. |
+| 2026-11-05 | v2.8.2.d5f1619 | heltec-v4 | TETHER Phase 1 | SUCCESS. Hook printed `optional-modules: Tether`. Flash 35.1% (2,303,395 B, +7,964 B vs stock), static RAM 98,488 B (+8 B; the module's ~3 KB of history is heap-allocated at boot). Only warning is RadioLib's upstream `#warning` about USB CDC, also printed by the stock build. Not flashed to a board. |
+
+## Host unit tests
+`python scripts/run_host_tests.py` compiles `tests/host/*.cpp` against `module/Tether/` with any C++17 compiler
+(`$CXX`, `g++`, `clang++`, or `pip install ziglang`) and runs them. They cover only the hardware-independent
+headers (`TetherProtocol.h`, `TetherMath.h`, `TetherStats.h`), not the Meshtastic-facing `TetherModule.cpp`.

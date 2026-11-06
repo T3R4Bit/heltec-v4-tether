@@ -6,18 +6,23 @@ Legend: `[ ]` not started · `[~]` written, untested · `[x]` built **and** test
 See [docs/BUILD.md](docs/BUILD.md). Compile-only items have no hardware part; `[x]` there means the build was run and succeeded.
 - [x] Clone `meshtastic/firmware`, pinned to `v2.8.2.d5f1619` (first hook-capable line is 2.8.1; all 2.8.x are pre-releases). `./firmware` is gitignored; a path without spaces is required, so `TETHER_FIRMWARE_DIR` can point elsewhere
 - [x] Unmodified `heltec-v4` env builds with PlatformIO (2026-11-05, Windows; not flashed)
-- [~] `scripts/install_module.py`: copies `module/Tether/` into `src/modules/optional/`. Tested against throwaway directory trees only; not yet exercised with a real module in a real build
+- [x] `scripts/install_module.py`: copies `module/Tether/` into `src/modules/optional/`. Used for the real Phase 1 build (the hook printed `optional-modules: Tether`)
 
 ## Phase 1: Core link module (MVP)
-Fixed pair of known nodes (each board is configured with the peer's node ID). Packet format and data flow go in `docs/DESIGN_NOTES.md` before code.
-- [ ] Module skeleton: `SinglePortModule` + `OSThread` on `PRIVATE_APP` (port 256), registered via `OPTIONAL_MODULES_SETUP`
-- [ ] Active ping/reply, hop_limit 0, gated by `airTime->isTxAllowedChannelUtil()`
-- [ ] Passive RSSI/SNR logging from normal traffic
-- [ ] Two-way stats (my RX of them, their RX of me)
-- [ ] Ring-buffer history
-- [ ] Fade margin vs. the current preset's sensitivity
-- [ ] Ping interval scaled to preset airtime (LongFast cannot do 1 Hz; expect 5-15 s on long presets, faster on short)
-- [ ] Serial output of stats
+Fixed pair of known nodes: the peer is the single favorited node (or `-DTETHER_PEER_NODENUM`). Design: [docs/DESIGN_NOTES.md](docs/DESIGN_NOTES.md).
+
+**Status:** all items written, the `heltec-v4` firmware with the module **compiles**, and the hardware-independent
+logic (wire format, link math, stats) passes **host unit tests** (`python scripts/run_host_tests.py`). **Nothing has
+run on a board yet**, so every item stays `[~]` until the two-board hardware test (design notes, section 9 step 3).
+- [~] Module skeleton: `SinglePortModule` + `OSThread` on `PRIVATE_APP` (port 256), registered via `OPTIONAL_MODULES_SETUP` (registration confirmed at build time only)
+- [~] Active ping/reply, hop_limit 0, gated by `isTxAllowedChannelUtil(true)` **and** `isTxAllowedAirUtil()`; lower node number initiates; back-off after 3 missed replies
+- [~] Passive RSSI/SNR logging from normal traffic (direct packets only; best-effort, see design notes 5)
+- [~] Two-way stats (my RX of them, their RX of me)
+- [~] Ring-buffer history (128 samples per direction)
+- [~] Fade margin vs. the current preset's sensitivity (SNR-based and RSSI-based)
+- [~] Ping interval scaled to preset airtime (10 % budget: LongFast 12 s, ShortFast 2 s, LongSlow 71 s)
+- [~] Serial output of stats (`TETHER ...` key=value log lines)
+- [x] Host unit tests for protocol, math and stats (160 checks; no hardware involved)
 
 ## Phase 2: Feedback
 - [ ] Scrolling RSSI/SNR graph on OLED (UI style TBD, see Open Decisions)

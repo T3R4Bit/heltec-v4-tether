@@ -2,7 +2,8 @@
 
 A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3R2, SX1262 + front-end module), plus a laptop logger and a mobile web app.
 
-> **Status: Phase 0 (toolchain) done.** A stock `heltec-v4` build compiles; no TETHER firmware has been written, built, or tested yet.
+> **Status: Phase 1 written and compiling, not yet tested on hardware.** The `heltec-v4` firmware with TETHER builds and
+> the hardware-independent logic passes host unit tests. Nothing has run on a board yet.
 > Do not assume any feature works until it is marked tested in [PLANNED_FEATURES.md](PLANNED_FEATURES.md).
 
 ## What it adds
@@ -25,7 +26,8 @@ A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3
 
 ## Repo layout
 ```
-module/Tether/   module source, copied into a firmware checkout (empty for now)
+module/Tether/   module source, copied into a firmware checkout
+tests/host/      unit tests for the hardware-independent code (run on a PC)
 tools/           laptop-side logger.py and dashboard.py (planned, not created yet)
 docs/            design notes, open decisions
 scripts/         install_module.py (copies the module into a firmware checkout)
@@ -38,6 +40,15 @@ Full steps and Windows gotchas: [docs/BUILD.md](docs/BUILD.md).
 1. Clone Meshtastic firmware **v2.8.2.d5f1619** (needs ≥ v2.8.1 for the optional-module hook) into `./firmware` (gitignored), or anywhere without spaces in the path and set `TETHER_FIRMWARE_DIR`.
 2. `python scripts/install_module.py` copies `module/Tether/` into the checkout's `src/modules/optional/`.
 3. `cd <firmware> && pio run -e heltec-v4`
+4. Host unit tests (no board needed): `python scripts/run_host_tests.py`
+
+## Using it (Phase 1, untested on hardware)
+1. Flash both boards with the TETHER build. Same region, channel and preset on both.
+2. In the Meshtastic app on each board, **favorite the other board, and only that one**. Exactly one favorite = the
+   peer. (Or build with `-DTETHER_PEER_NODENUM=0x........`.)
+3. Watch the USB serial log for `TETHER` lines: the board with the lower node number sends pings, the other replies.
+   Expect the first ping about 30 s after boot, then one per interval (about 12 s on LongFast).
+4. `device.rebroadcast_mode` must not be `CORE_PORTNUMS_ONLY`, because that mode drops port 256.
 
 ## Principles
 - MVP (phase 1) working end to end before polishing later phases. Architecture and data flow first, UI last.

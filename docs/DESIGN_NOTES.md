@@ -74,7 +74,7 @@ Fixed little-endian layout. All packets share a 4-byte header.
 
 | Off | Size | Field |
 |---|---|---|
-| 4 | 2 | `seq` (u16), increments only when a ping is actually handed to the router |
+| 4 | 2 | `seq` (u16, 0..65534, wraps modulo 65535 so it never equals `0xFFFF`), increments only when a ping is actually handed to the router |
 | 6 | 2 | `rpt_seq`: seq of the last REPLY the initiator heard (`0xFFFF` = none yet) |
 | 8 | 2 | `rpt_rssi` (i16, dBm): initiator's RX RSSI of that reply |
 | 10 | 1 | `rpt_snr_q4` (i8, SNR × 4, i.e. 0.25 dB steps; range ±31.75 dB) |
