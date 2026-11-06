@@ -5,7 +5,7 @@ A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3
 > **Status: firmware for Phases 1-3 written and compiling, laptop tools working on synthetic data. Nothing has run on
 > a board yet.** The `heltec-v4` firmware with TETHER builds without warnings; the hardware-independent logic passes host
 > unit tests; the dashboard passes a real-browser test. See [PLANNED_FEATURES.md](PLANNED_FEATURES.md) for exactly what is
-> tested and how. OLED look still to be picked: [docs/OLED.md](docs/OLED.md).
+> tested and how. OLED look: layout 1 (STRIP), see [docs/OLED.md](docs/OLED.md).
 > Do not assume any feature works until it is marked tested in [PLANNED_FEATURES.md](PLANNED_FEATURES.md).
 
 ## What it adds
@@ -17,7 +17,7 @@ A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3
 ## What it looks like
 Both images below are rendered from **synthetic** data (`tools/synth.py`, labelled as such), not from a real test.
 
-| OLED layouts (pick one: [docs/OLED.md](docs/OLED.md)) | Dashboard on a phone ([tools/](tools/README.md)) |
+| OLED layouts (1 STRIP is the chosen one: [docs/OLED.md](docs/OLED.md)) | Dashboard on a phone ([tools/](tools/README.md)) |
 |---|---|
 | ![OLED layout candidates](docs/oled/sketches.png) | ![Dashboard, synthetic data](docs/screenshots/dashboard-mobile.png) |
 

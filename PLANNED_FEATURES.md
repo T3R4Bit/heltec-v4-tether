@@ -26,8 +26,8 @@ run on a board yet**, so every item stays `[~]` until the two-board hardware tes
 
 ## Phase 2: Feedback
 Firmware compiles with all of this (2026-11-06); pure logic host-tested (73 checks); **nothing seen on a real board yet.**
-- [~] Scrolling SNR graph on OLED: three candidate layouts, real renders in [docs/OLED.md](docs/OLED.md). **Look not
-  chosen yet**: layout 1 is a provisional default (`-DTETHER_OLED_LAYOUT=1|2|3`)
+- [~] Scrolling SNR graph on OLED: layout 1 STRIP chosen and is the default ([docs/OLED.md](docs/OLED.md)); not yet
+  seen on a physical OLED
 - [ ] Proximity tone: pitch/rate follows signal (blocked: buzzer GPIO not chosen yet)
 - [~] GPS-tagged signal log for fox-hunting: every `TETHER rx`/`rpt` line carries the local fix (`TETHER_GPS_TAG`)
   - [~] Log HDOP, satellite count and fix type per sample
@@ -93,7 +93,7 @@ errors). Nothing has been run against a real node yet, so items stay `[~]`.
 - [x] Target env: **OLED, `heltec-v4`** (TFT not targeted)
 - [x] Phone interface: **mobile-first web app / PWA** (Phase 4c); no native app, stock Meshtastic app will not show TETHER data
 - [x] Name: **TETHER**, repo **`heltec-v4-tether`**
+- [x] OLED look: **layout 1, STRIP** ([docs/OLED.md](docs/OLED.md)); 2 and 3 remain as build options
 
 ## Open Decisions (to resolve, not assume)
 - [ ] Buzzer: passive buzzer on which free GPIO? Deferred; no buzzer for now.
-- [ ] OLED UI look: three layouts proposed with real renders in [docs/OLED.md](docs/OLED.md). Pick 1, 2 or 3 (or ask for changes).

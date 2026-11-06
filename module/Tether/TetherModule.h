@@ -28,7 +28,7 @@
 #define TETHER_OLED 1 // add a TETHER page to the OLED carousel (only on builds with a screen)
 #endif
 #ifndef TETHER_OLED_LAYOUT
-#define TETHER_OLED_LAYOUT 1 // 1 STRIP, 2 SPLIT, 3 BIG (docs/OLED.md). Provisional default, pending a pick.
+#define TETHER_OLED_LAYOUT 1 // 1 STRIP (chosen 2026-11-06), 2 SPLIT, 3 BIG (docs/OLED.md)
 #endif
 #ifndef TETHER_GPS_TAG
 #define TETHER_GPS_TAG 1 // append the local GPS fix to rx/rpt lines when it passes the quality gate

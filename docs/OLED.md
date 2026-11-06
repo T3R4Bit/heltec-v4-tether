@@ -1,13 +1,12 @@
-# OLED screen: three layouts to choose from
+# OLED screen
 
-The rules say the OLED look must be hard-edged and blocky, and that a look is **proposed, not chosen**. So the
-firmware ships all three layouts below, picked with one build flag. **Layout 1 is compiled in as a provisional
-default only so the screen isn't blank.** Pick one (or ask for changes) and the default will follow.
+**Chosen look: layout 1, STRIP** (decided 2026-11-06). It is the default build. Layouts 2 and 3 stay in the code as
+alternatives you can switch to with one flag:
 
-```ini
-build_flags = -DTETHER_OLED_LAYOUT=1   ; 1 STRIP, 2 SPLIT, 3 BIG
-              -DTETHER_OLED=0          ; or leave the TETHER page out entirely
+```sh
+python scripts/build_firmware.py --layout 2     # or -DTETHER_OLED_LAYOUT=2 in build_flags
 ```
+`-DTETHER_OLED=0` leaves the TETHER page out entirely.
 
 These are real renders: the same C++ drawing code the firmware runs, rendered on a PC
 (`python scripts/render_oled_previews.py`) from **synthetic** link scenarios, at 128×64 with the pixel grid shown.
