@@ -1,0 +1,48 @@
+name: ci
+
+# Fast tests on every push and PR (about a minute). The full firmware build takes ~15 minutes and a lot of CI minutes,
+# so it only runs when started by hand: Actions -> ci -> Run workflow -> tick "firmware".
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      firmware:
+        description: "Also build the heltec-v4 firmware"
+        type: boolean
+        default: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Host C++ unit tests (protocol, math, stats, OLED, GPS, power)
+        run: python scripts/run_host_tests.py
+      - name: Laptop tools unit tests
+        run: python -m unittest discover -s tools/tests -v
+      - name: OLED previews still render
+        run: python scripts/render_oled_previews.py
+
+  firmware:
+    if: github.event_name == 'workflow_dispatch' && inputs.firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('scripts/FIRMWARE_VERSION') }}
+      - run: python -m pip install platformio
+      - name: Build Meshtastic + TETHER (heltec-v4)
+        run: python scripts/build_firmware.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-heltec-v4
+          path: firmware/.pio/build/heltec-v4/firmware-*.bin
