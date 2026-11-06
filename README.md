@@ -32,17 +32,23 @@ module/Tether/   module source, copied into a firmware checkout
 tests/host/      unit tests for the hardware-independent code (run on a PC)
 tools/           laptop logger, dashboard/PWA, synthetic data generator (see tools/README.md)
 docs/            design notes, open decisions
-scripts/         install_module.py (copies the module into a firmware checkout)
+scripts/         build_firmware.py, install_module.py, host test runner, OLED font/preview generators
 PLANNED_FEATURES.md
 ```
 This is a standalone repo that copies the module into a Meshtastic firmware checkout. It is **not** a fork.
 
 ## Getting started
-Full steps and Windows gotchas: [docs/BUILD.md](docs/BUILD.md).
-1. Clone Meshtastic firmware **v2.8.2.d5f1619** (needs ≥ v2.8.1 for the optional-module hook) into `./firmware` (gitignored), or anywhere without spaces in the path and set `TETHER_FIRMWARE_DIR`.
-2. `python scripts/install_module.py` copies `module/Tether/` into the checkout's `src/modules/optional/`.
-3. `cd <firmware> && pio run -e heltec-v4`
-4. Host unit tests (no board needed): `python scripts/run_host_tests.py`
+**One command** (clones the pinned Meshtastic firmware if needed, installs the module, builds, optionally flashes):
+```sh
+python -m pip install platformio
+python scripts/build_firmware.py                       # build
+python scripts/build_firmware.py --upload --port COM5  # build + flash one board
+```
+On Windows run it from PowerShell, not Git Bash. Manual steps and the Windows gotchas: [docs/BUILD.md](docs/BUILD.md).
+First time on real boards: [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md).
+
+Tests without a board: `python scripts/run_host_tests.py` (C++) and `python -m unittest discover -s tools/tests` (laptop
+tools). GitHub Actions runs both on every push; the firmware build can be started by hand from the Actions tab.
 
 ## Using it (Phase 1, untested on hardware)
 1. Flash both boards with the TETHER build. Same region, channel and preset on both.

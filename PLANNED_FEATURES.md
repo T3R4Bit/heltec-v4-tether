@@ -75,8 +75,8 @@ errors). Nothing has been run against a real node yet, so items stay `[~]`.
 - [~] Optional phone geolocation as a position source, matched to RSSI samples by timestamp (`POST /api/geo`, tested via HTTP; not tried on a phone)
 
 ## Phase 5: Verify
-- [ ] Compile with PlatformIO (`heltec-v4`)
-- [ ] Hardware test on two V4 boards
+- [x] Compile with PlatformIO (`heltec-v4`): `python scripts/build_firmware.py` builds with no TETHER warnings (compile only, 2026-11-06)
+- [ ] Hardware test on two V4 boards: checklist in [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md)
 - [ ] Run logger/dashboard against a real range test
 - [ ] Record plainly what remains untested
 
