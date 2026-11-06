@@ -2,8 +2,10 @@
 
 A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3R2, SX1262 + front-end module), plus a laptop logger and a mobile web app.
 
-> **Status: Phase 1 written and compiling, not yet tested on hardware.** The `heltec-v4` firmware with TETHER builds and
-> the hardware-independent logic passes host unit tests. Nothing has run on a board yet.
+> **Status: firmware for Phases 1-3 written and compiling, laptop tools working on synthetic data. Nothing has run on
+> a board yet.** The `heltec-v4` firmware with TETHER builds without warnings; the hardware-independent logic passes host
+> unit tests; the dashboard passes a real-browser test. See [PLANNED_FEATURES.md](PLANNED_FEATURES.md) for exactly what is
+> tested and how. OLED look still to be picked: [docs/OLED.md](docs/OLED.md).
 > Do not assume any feature works until it is marked tested in [PLANNED_FEATURES.md](PLANNED_FEATURES.md).
 
 ## What it adds

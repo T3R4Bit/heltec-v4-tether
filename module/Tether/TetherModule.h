@@ -6,6 +6,8 @@
 #include "concurrency/OSThread.h"
 #include "configuration.h"
 
+#include "TetherGeo.h"
+#include "TetherPower.h"
 #include "TetherProtocol.h"
 #include "TetherStats.h"
 
@@ -22,6 +24,18 @@
 #ifndef TETHER_HISTORY_LEN
 #define TETHER_HISTORY_LEN 128 // samples kept per direction
 #endif
+#ifndef TETHER_OLED
+#define TETHER_OLED 1 // add a TETHER page to the OLED carousel (only on builds with a screen)
+#endif
+#ifndef TETHER_OLED_LAYOUT
+#define TETHER_OLED_LAYOUT 1 // 1 STRIP, 2 SPLIT, 3 BIG (docs/OLED.md). Provisional default, pending a pick.
+#endif
+#ifndef TETHER_GPS_TAG
+#define TETHER_GPS_TAG 1 // append the local GPS fix to rx/rpt lines when it passes the quality gate
+#endif
+#ifndef TETHER_LOW_BATTERY_SLOWDOWN
+#define TETHER_LOW_BATTERY_SLOWDOWN 1 // ping less often on a low, non-charging battery
+#endif
 
 class TetherModule : public SinglePortModule, private concurrency::OSThread
 {
@@ -34,12 +48,22 @@ class TetherModule : public SinglePortModule, private concurrency::OSThread
     /// Called by TetherSniffer for a direct packet from the peer on any other port.
     void onPassiveRx(const meshtastic_MeshPacket &mp);
 
+#if HAS_SCREEN && TETHER_OLED
+    bool wantUIFrame() override { return true; }
+    void drawFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y) override;
+#endif
+
   protected:
     bool wantPacket(const meshtastic_MeshPacket *p) override;
     ProcessMessage handleReceived(const meshtastic_MeshPacket &mp) override;
     int32_t runOnce() override;
 
   private:
+    /// Appends " lat=.. lon=.. alt=.. hdop=.. sats=.. fix=.. gps_t=.." (or " gps=<reason>") for the GPS-tagged log.
+    void appendGps(char *out, size_t n);
+    void updatePower();
+    void logPower();
+    uint32_t powerMultiplier() const;
     enum class Role : uint8_t { NONE, INITIATOR, RESPONDER };
 
     struct Preset {
@@ -102,6 +126,12 @@ class TetherModule : public SinglePortModule, private concurrency::OSThread
     tether::Direction<TETHER_HISTORY_LEN> remote; // the peer's RX of me
     tether::DeliveryWindow delivery;              // initiator: replies per ping
     tether::GapCounter gaps;                      // responder: ping sequence gaps
+
+    tether::PositionSmoother gpsSmooth;
+    tether::BatteryTracker battery;
+    uint32_t lastPowerSampleMs = 0;
+    uint32_t lastPowerLogMs = 0;
+    uint32_t lastPowerMult = 1;
 };
 
 /// Promiscuous listener that turns the peer's ordinary traffic into passive RSSI/SNR samples.

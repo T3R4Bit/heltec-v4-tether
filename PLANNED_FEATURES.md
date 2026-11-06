@@ -25,21 +25,25 @@ run on a board yet**, so every item stays `[~]` until the two-board hardware tes
 - [x] Host unit tests for protocol, math and stats (160 checks; no hardware involved)
 
 ## Phase 2: Feedback
-- [ ] Scrolling RSSI/SNR graph on OLED (UI style TBD, see Open Decisions)
-- [ ] Proximity tone: pitch/rate follows signal (blocked: buzzer GPIO not chosen yet; compiled out until then)
-- [ ] GPS-tagged signal log for fox-hunting (V4 GNSS header)
-  - [ ] Log HDOP, satellite count and fix type per sample
-  - [ ] Drop samples with HDOP above ~2 or fewer than ~6 satellites
-  - [ ] Smooth position
-  - [ ] Higher local fix rate while fox-hunting
-  - [ ] Timestamp samples from the GNSS fix
+Firmware compiles with all of this (2026-11-06); pure logic host-tested (73 checks); **nothing seen on a real board yet.**
+- [~] Scrolling SNR graph on OLED: three candidate layouts, real renders in [docs/OLED.md](docs/OLED.md). **Look not
+  chosen yet**: layout 1 is a provisional default (`-DTETHER_OLED_LAYOUT=1|2|3`)
+- [ ] Proximity tone: pitch/rate follows signal (blocked: buzzer GPIO not chosen yet)
+- [~] GPS-tagged signal log for fox-hunting: every `TETHER rx`/`rpt` line carries the local fix (`TETHER_GPS_TAG`)
+  - [~] Log HDOP, satellite count and fix type per sample
+  - [~] Drop samples with HDOP above 2 or fewer than 6 satellites (logged as `gps=hdop|sats|nofix` instead)
+  - [~] Smooth position (EWMA per new fix, restarts on a >100 m jump)
+  - [ ] Higher local fix rate while fox-hunting (not done: would mean rewriting the user's GPS update interval at runtime)
+  - [~] Timestamp samples from the GNSS fix (`gps_t`)
 
 ## Phase 3: Power
-- [ ] Smoothed VBAT
-- [ ] TX voltage-sag log
-- [ ] Charge/solar detection
-- [ ] Runtime estimate
-- [ ] Adaptive low-battery behaviour: lower ping rate, brightness, TX power; last-gasp packet
+Firmware compiles; pure logic host-tested; not run on a board. Uses Meshtastic's PowerStatus (its LiPo OCV curve), no ADC code of its own.
+- [~] Smoothed VBAT and charge (`TETHER power` line every 60 s)
+- [ ] TX voltage-sag log (not done: needs ADC reads timed around TX, and the battery ADC belongs to Meshtastic's Power class)
+- [~] Charge detection (USB / charging flags from PowerStatus). Solar is not distinguished from USB charging
+- [~] Runtime estimate (least-squares slope of charge over the last hour, needs 15 min of history)
+- [~] Adaptive low battery: ping interval x2 below 20 %, x4 below 10 % when not charging
+  - [ ] Lower brightness / TX power, last-gasp packet (not done: these change the user's device config or the wire format; want a decision first)
 - [ ] Optional INA219/226/260 coulomb counting (mA/mAh)
 
 ## Phase 4: Export and sweeps
@@ -90,4 +94,4 @@ errors). Nothing has been run against a real node yet, so items stay `[~]`.
 
 ## Open Decisions (to resolve, not assume)
 - [ ] Buzzer: passive buzzer on which free GPIO? Deferred; no buzzer for now.
-- [ ] OLED UI look: propose 2-3 neo-brutalist sketches and ask before building (Phase 2)
+- [ ] OLED UI look: three layouts proposed with real renders in [docs/OLED.md](docs/OLED.md). Pick 1, 2 or 3 (or ask for changes).

@@ -188,6 +188,19 @@ TETHER stats peer=!1a2b3c4d role=initiator sent=120 replies=111 pdr32=0.94 rssi_
 ```
 `stats` every 10 pings or 60 s, whichever comes first.
 
+Added after Phase 1 (compiled, not run on hardware):
+```
+TETHER rx kind=reply ... lat=39.739200 lon=-104.990300 alt=1609 hdop=0.90 sats=11 fix=3 gps_t=1762412431 gps=ok
+TETHER rx kind=reply ... gps=hdop sats=7 hdop=3.10                  # fix failed the quality gate: no position
+TETHER power vbat_mv=3950 vbat_ewma=3948 pct=81.5 usb=0 charging=0 trend_pct_h=-6.00 runtime_h=13.6 mult=1
+TETHER power_mode mult=2 pct=19 charging=0                          # low-battery slow-down changed
+```
+- GPS suffix on `rx` and `rpt` lines (`TETHER_GPS_TAG`): smoothed local position from `gpsStatus`, HDOP/fix type/time
+  from `localPosition`. Gate: lock, >= 6 satellites, HDOP <= 2.0 (`TetherGeo.h`).
+- `power` every 60 s from `powerStatus` (Meshtastic's LiPo OCV curve gives `pct`); trend and runtime from
+  `TetherPower.h`. `mult` multiplies the ping interval (x2 below 20 %, x4 below 10 %, not while charging).
+- OLED page: see [OLED.md](OLED.md).
+
 Meshtastic prints debug logs on the USB serial port while no API client is attached. With a client attached they
 arrive as `LogRecord`s only if `security.debug_log_api_enabled` is on. The logger will rely on that.
 

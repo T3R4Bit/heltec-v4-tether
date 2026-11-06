@@ -1,6 +1,8 @@
 #include "TetherModule.h"
 
+#include "GPSStatus.h"
 #include "MeshRadio.h"
+#include "PowerStatus.h"
 #include "MeshService.h"
 #include "NodeDB.h"
 #include "RadioInterface.h"
@@ -10,6 +12,9 @@
 #include "modules/NodeInfoModule.h"
 
 #include "TetherMath.h"
+#if HAS_SCREEN && TETHER_OLED
+#include "TetherScreen.h"
+#endif
 
 #include <Arduino.h>
 #include <stdio.h>
@@ -26,6 +31,8 @@ constexpr uint32_t IDLE_LOG_MS = 60 * 1000;
 constexpr uint32_t STATS_PERIOD_MS = 60 * 1000;
 constexpr uint32_t STATS_EVERY_PINGS = 10;
 constexpr uint32_t NODEINFO_REQ_MS = 5 * 60 * 1000;
+constexpr uint32_t POWER_SAMPLE_MS = 10 * 1000;
+constexpr uint32_t POWER_LOG_MS = 60 * 1000;
 
 // meshtastic_Data wrapped around our payload: portnum (tag + 2-byte varint for 256), payload (tag + length byte),
 // bitfield (tag + 1 byte). Used only to estimate airtime before the packet exists.
@@ -63,6 +70,8 @@ int32_t TetherModule::runOnce()
         return MESHMODULE_MIN_BROADCAST_DELAY_MS;
     }
 
+    updatePower();
+
     if (config.lora.region == meshtastic_Config_LoRaConfig_RegionCode_UNSET) {
         logIdle("region_unset");
         return PEER_RECHECK_MS;
@@ -99,7 +108,8 @@ int32_t TetherModule::runOnce()
     if (txAllowed("ping"))
         sendPing();
 
-    const uint32_t next = applyJitter(base * backoffMultiplier(missStreak), (uint32_t)random(0, 1000000));
+    const uint32_t next =
+        applyJitter(base * backoffMultiplier(missStreak) * powerMultiplier(), (uint32_t)random(0, 1000000));
     return (int32_t)next;
 }
 
@@ -322,9 +332,9 @@ void TetherModule::sendPing()
     delivery.recordPing(ping.seq);
     lastIdleReason = nullptr;
 
-    LOG_INFO("TETHER tx kind=ping peer=!%08x seq=%u interval_ms=%u airtime_ms=%u backoff=%u", (unsigned)peerNum,
+    LOG_INFO("TETHER tx kind=ping peer=!%08x seq=%u interval_ms=%u airtime_ms=%u backoff=%u power=%u", (unsigned)peerNum,
              (unsigned)ping.seq, (unsigned)baseIntervalMs(), (unsigned)packetAirtimeMs(PING_LEN),
-             (unsigned)backoffMultiplier(missStreak));
+             (unsigned)backoffMultiplier(missStreak), (unsigned)powerMultiplier());
 }
 
 void TetherModule::sendReply(uint16_t pingSeq, const meshtastic_MeshPacket &ping)
@@ -467,14 +477,101 @@ void TetherModule::recordLocal(const meshtastic_MeshPacket &mp, uint16_t seq, Sa
     const double mSnr = marginSnrDb(snr, ps.sf);
     const double mRssi = marginRssiDb(s.rssi, ps.sf, ps.bwKHz);
 
+    char line[256];
+    int len;
     if (kind == SampleKind::PASSIVE) {
         const int port = mp.which_payload_variant == meshtastic_MeshPacket_decoded_tag ? (int)mp.decoded.portnum : -1;
-        LOG_INFO("TETHER rx kind=passive peer=!%08x rssi=%d snr=%.2f margin_snr=%.2f margin_rssi=%.1f port=%d",
-                 (unsigned)peerNum, (int)s.rssi, (double)snr, mSnr, mRssi, port);
+        len = snprintf(line, sizeof(line), "TETHER rx kind=passive peer=!%08x rssi=%d snr=%.2f margin_snr=%.2f margin_rssi=%.1f port=%d",
+                       (unsigned)peerNum, (int)s.rssi, (double)snr, mSnr, mRssi, port);
     } else {
-        LOG_INFO("TETHER rx kind=%s peer=!%08x seq=%u rssi=%d snr=%.2f margin_snr=%.2f margin_rssi=%.1f", kindName(kind),
-                 (unsigned)peerNum, (unsigned)seq, (int)s.rssi, (double)snr, mSnr, mRssi);
+        len = snprintf(line, sizeof(line), "TETHER rx kind=%s peer=!%08x seq=%u rssi=%d snr=%.2f margin_snr=%.2f margin_rssi=%.1f",
+                       kindName(kind), (unsigned)peerNum, (unsigned)seq, (int)s.rssi, (double)snr, mSnr, mRssi);
     }
+    if (len > 0 && (size_t)len < sizeof(line))
+        appendGps(line + len, sizeof(line) - (size_t)len);
+    LOG_INFO("%s", line);
+}
+
+void TetherModule::appendGps(char *out, size_t n)
+{
+    if (!n)
+        return;
+    out[0] = '\0';
+#if TETHER_GPS_TAG && !MESHTASTIC_EXCLUDE_GPS
+    if (!gpsStatus) {
+        snprintf(out, n, " gps=none");
+        return;
+    }
+    const uint32_t sats = gpsStatus->getNumSatellites();
+    const uint32_t hdop = localPosition.HDOP; // x100; 0 when the receiver does not report it
+    const GpsQuality q = config.position.fixed_position ? GpsQuality::OK
+                                                         : gpsQuality(gpsStatus->getHasLock(), sats, hdop);
+    if (q != GpsQuality::OK) {
+        snprintf(out, n, " gps=%s sats=%u hdop=%.2f", gpsQualityName(q), (unsigned)sats, (double)hdop / 100.0);
+        return;
+    }
+    gpsSmooth.update((double)gpsStatus->getLatitude() * 1e-7, (double)gpsStatus->getLongitude() * 1e-7,
+                     gpsStatus->getLastFixMillis());
+    snprintf(out, n, " lat=%.6f lon=%.6f alt=%d hdop=%.2f sats=%u fix=%u gps_t=%u gps=%s", gpsSmooth.lat(), gpsSmooth.lon(),
+             (int)gpsStatus->getAltitude(), (double)hdop / 100.0, (unsigned)sats, (unsigned)localPosition.fix_type,
+             (unsigned)localPosition.timestamp, config.position.fixed_position ? "fixed" : "ok");
+#endif
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Power
+
+void TetherModule::updatePower()
+{
+    if (!powerStatus)
+        return;
+    const uint32_t now = millis();
+    if (lastPowerSampleMs && now - lastPowerSampleMs < POWER_SAMPLE_MS)
+        return;
+    lastPowerSampleMs = now;
+
+    const bool hasBattery = powerStatus->getHasBattery();
+    battery.add(now / 1000, hasBattery ? powerStatus->getBatteryVoltageMv() : 0,
+                hasBattery ? (int)powerStatus->getBatteryChargePercent() : -1, powerStatus->getIsCharging(),
+                powerStatus->getHasUSB());
+
+    if (!lastPowerLogMs || now - lastPowerLogMs >= POWER_LOG_MS) {
+        lastPowerLogMs = now;
+        logPower();
+    }
+    const uint32_t mult = powerMultiplier();
+    if (mult != lastPowerMult) {
+        LOG_INFO("TETHER power_mode mult=%u pct=%.0f charging=%d", (unsigned)mult, (double)battery.percent(),
+                 battery.charging() ? 1 : 0);
+        lastPowerMult = mult;
+    }
+}
+
+uint32_t TetherModule::powerMultiplier() const
+{
+#if TETHER_LOW_BATTERY_SLOWDOWN
+    const bool hasBattery = powerStatus && powerStatus->getHasBattery();
+    return lowBatteryMultiplier(hasBattery, battery.charging(), battery.havePercent() ? (int)(battery.percent() + 0.5f) : -1);
+#else
+    return 1;
+#endif
+}
+
+void TetherModule::logPower()
+{
+    char mv[16] = "na", pct[16] = "na", trend[16] = "na", runtime[16] = "na";
+    float v;
+    if (battery.haveVoltage())
+        snprintf(mv, sizeof(mv), "%.0f", (double)battery.voltageMv());
+    if (battery.havePercent())
+        snprintf(pct, sizeof(pct), "%.1f", (double)battery.percent());
+    if (battery.slopePctPerHour(v))
+        snprintf(trend, sizeof(trend), "%.2f", (double)v);
+    if (battery.runtimeHours(v))
+        snprintf(runtime, sizeof(runtime), "%.1f", (double)v);
+    LOG_INFO("TETHER power vbat_mv=%d vbat_ewma=%s pct=%s usb=%d charging=%d trend_pct_h=%s runtime_h=%s mult=%u",
+             powerStatus ? powerStatus->getBatteryVoltageMv() : 0, mv, pct, battery.usb() ? 1 : 0,
+             battery.charging() ? 1 : 0, trend, runtime, (unsigned)powerMultiplier());
 }
 
 void TetherModule::recordRemote(uint16_t seq, int16_t rssi, int8_t snrQ4, SampleKind kind)
@@ -489,9 +586,14 @@ void TetherModule::recordRemote(uint16_t seq, int16_t rssi, int8_t snrQ4, Sample
 
     const Preset ps = currentPreset();
     const float snr = q4ToSnr(snrQ4);
-    LOG_INFO("TETHER rpt kind=%s peer=!%08x seq=%u rssi=%d snr=%.2f margin_snr=%.2f margin_rssi=%.1f", kindName(kind),
-             (unsigned)peerNum, (unsigned)seq, (int)rssi, (double)snr, (double)marginSnrDb(snr, ps.sf),
-             (double)marginRssiDb(rssi, ps.sf, ps.bwKHz));
+    char line[256];
+    const int len = snprintf(line, sizeof(line),
+                             "TETHER rpt kind=%s peer=!%08x seq=%u rssi=%d snr=%.2f margin_snr=%.2f margin_rssi=%.1f",
+                             kindName(kind), (unsigned)peerNum, (unsigned)seq, (int)rssi, (double)snr,
+                             (double)marginSnrDb(snr, ps.sf), (double)marginRssiDb(rssi, ps.sf, ps.bwKHz));
+    if (len > 0 && (size_t)len < sizeof(line))
+        appendGps(line + len, sizeof(line) - (size_t)len);
+    LOG_INFO("%s", line);
 }
 
 void TetherModule::maybeLogStats(bool force)
@@ -534,6 +636,68 @@ void TetherModule::logIdle(const char *reason)
     lastIdleLogMs = now;
     LOG_INFO("TETHER idle reason=%s", reason);
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// OLED page
+
+#if HAS_SCREEN && TETHER_OLED
+namespace
+{
+template <size_t N> uint8_t copyGraph(const Direction<N> &d, int8_t *out)
+{
+    const size_t n = d.ring.size();
+    const size_t first = n > (size_t)GRAPH_MAX ? n - GRAPH_MAX : 0;
+    uint8_t k = 0;
+    for (size_t i = first; i < n; i++)
+        out[k++] = d.ring.at(i).snrQ4;
+    return k;
+}
+} // namespace
+
+void TetherModule::drawFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16_t x, int16_t y)
+{
+    (void)state;
+    static Canvas canvas;     // 1 KB, kept off the stack
+    static ScreenModel model; // ~170 B
+    model = ScreenModel();
+
+    model.havePeer = peerNum != 0;
+    if (!model.havePeer) {
+        if (lastIdleReason && strcmp(lastIdleReason, "region_unset") == 0) {
+            model.idleReason = "NO REGION";
+            model.idleHint1 = "SET THE LORA";
+            model.idleHint2 = "REGION FIRST";
+        }
+    } else {
+        snprintf(model.peerShort, sizeof(model.peerShort), "%04X", (unsigned)(peerNum & 0xFFFF));
+        model.initiator = role == Role::INITIATOR;
+        model.snrFloor = snrFloorDb(currentPreset().sf);
+        model.nLocal = copyGraph(local, model.localSnrQ4);
+        model.nRemote = copyGraph(remote, model.remoteSnrQ4);
+        if (!local.empty()) {
+            const Sample &s = local.ring.latest();
+            model.haveLocal = true;
+            model.localRssi = s.rssi;
+            model.localSnr = q4ToSnr(s.snrQ4);
+            model.ageS = (millis() - s.tMs) / 1000;
+        }
+        if (!remote.empty()) {
+            const Sample &s = remote.ring.latest();
+            model.haveRemote = true;
+            model.remoteRssi = s.rssi;
+            model.remoteSnr = q4ToSnr(s.snrQ4);
+        }
+        if (role == Role::INITIATOR && delivery.pings())
+            model.pdrPct = (int)(delivery.ratio() * 100.0f + 0.5f);
+        else if (role == Role::RESPONDER && gaps.receivedCount())
+            model.pdrPct = (int)((1.0f - gaps.lossRatio()) * 100.0f + 0.5f);
+    }
+
+    renderScreen(canvas, model, (Layout)TETHER_OLED_LAYOUT);
+    display->setColor(WHITE);
+    display->drawXbm(x, y, Canvas::W, Canvas::H, canvas.buf);
+}
+#endif
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Sniffer
