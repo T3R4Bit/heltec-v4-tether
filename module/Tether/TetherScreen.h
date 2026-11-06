@@ -63,7 +63,7 @@ inline void fmtAge(char *out, size_t n, uint32_t s)
     else if (s < 6000)
         snprintf(out, n, "%uM", (unsigned)(s / 60));
     else
-        snprintf(out, n, "%uH", (unsigned)(s / 3600));
+        snprintf(out, n, "%uH", (unsigned)(s / 3600 > 999 ? 999 : s / 3600));
 }
 
 inline int snrToY(float snr, int y, int h)
@@ -95,7 +95,7 @@ inline void barGraph(Canvas &c, int x, int y, int w, int h, const int8_t *q4, in
 
 inline void lostBadge(Canvas &c, int rightX, int y, uint32_t ageS)
 {
-    char age[8], msg[16];
+    char age[16], msg[32];
     fmtAge(age, sizeof(age), ageS);
     snprintf(msg, sizeof(msg), "LOST %s", age);
     const int w = Canvas::textWidth(msg) + 6;
@@ -114,7 +114,7 @@ inline bool centeredMessage(Canvas &c, const ScreenModel &m)
     }
     if (!m.haveLocal) {
         c.textCentered(64, 18, "WAITING", 2);
-        char line[24];
+        char line[32];
         snprintf(line, sizeof(line), "%s %s", m.initiator ? "PINGING" : "LISTENING", m.peerShort);
         c.textCentered(64, 42, line, 1);
         return true;
@@ -128,14 +128,14 @@ inline void drawStrip(Canvas &c, const ScreenModel &m)
     c.fillRect(0, 0, 128, 11, true);
     c.text(2, 2, "TETHER", 1, false);
     if (m.havePeer) {
-        char hdr[16];
+        char hdr[24];
         snprintf(hdr, sizeof(hdr), "%s%s", m.initiator ? ">" : "<", m.peerShort);
         c.textRight(126, 2, hdr, 1, false);
     }
     if (centeredMessage(c, m))
         return;
 
-    char snr[10], buf[24];
+    char snr[16], buf[32];
     fmtSnr(snr, sizeof(snr), m.localSnr);
     int x = c.text(2, 14, snr, 2);
     c.text(x, 21, "DB", 1);
@@ -169,7 +169,7 @@ inline void splitPanel(Canvas &c, int y, const char *tag, bool have, float snrV,
     c.fillRect(0, y, 16, 30, true);
     c.text(2, y + 11, tag, 1, false);
     barGraph(c, 18, y + 1, 75, 28, q4, n, floorSnr);
-    char snr[10], buf[12];
+    char snr[16], buf[16];
     if (have) {
         fmtSnr(snr, sizeof(snr), snrV);
         c.textRight(127, y + 2, snr);
@@ -186,7 +186,7 @@ inline void drawSplit(Canvas &c, const ScreenModel &m)
 {
     if (centeredMessage(c, m))
         return;
-    char pdr[8], age[8];
+    char pdr[16], age[16];
     if (m.pdrPct >= 0)
         snprintf(pdr, sizeof(pdr), "%d%%", m.pdrPct);
     else
@@ -202,7 +202,7 @@ inline void drawSplit(Canvas &c, const ScreenModel &m)
 // Layout 3: one huge number (fade margin), stats line, short graph.
 inline void drawBig(Canvas &c, const ScreenModel &m)
 {
-    char buf[24];
+    char buf[32];
     snprintf(buf, sizeof(buf), "TETHER %s", m.peerShort);
     c.text(0, 0, buf);
     if (m.havePeer && m.pdrPct >= 0) {
@@ -226,7 +226,7 @@ inline void drawBig(Canvas &c, const ScreenModel &m)
     c.text(2, 23, "DB", 1);
     c.textRight(127, 13, buf, 3);
 
-    char snr[10];
+    char snr[16];
     fmtSnr(snr, sizeof(snr), m.localSnr);
     snprintf(buf, sizeof(buf), "RX%d %s", (int)m.localRssi, snr);
     c.text(0, 37, buf);
