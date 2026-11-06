@@ -29,9 +29,23 @@ Legend: `[ ]` not started · `[~]` written, untested · `[x]` built **and** test
 - [ ] Serial/MQTT lines formatted for InfluxDB/Grafana (self-hosted)
 - [ ] Automated preset / TX-power sweep for range tests
 
+## Phase 4b: Laptop-side logger and dashboard (companion tools)
+Runs on a laptop connected to a node (serial/USB, or TCP). Separate from the firmware module; lives in `tools/`. Python, local SQLite, self-hosted only.
+- [ ] `logger.py`: record everything the connected node hears (messages, GPS/position updates, RSSI/SNR) into SQLite with timestamps
+- [ ] `logger.py`: send messages from the terminal
+- [ ] `dashboard.py`: live browser dashboard reading the same database
+  - [ ] Map of the remote node's position
+  - [ ] SNR (and RSSI) over time
+  - [ ] Signal vs. distance chart (the key range-test graph)
+  - [ ] Max distance reached
+  - [ ] Message history with signal info per message
+- [ ] Optionally ingest TETHER's port-256 link stats once Phase 1 exists, alongside normal traffic
+- [ ] Screenshots / sample dataset from a real range test (only once actually run)
+
 ## Phase 5: Verify
 - [ ] Compile with PlatformIO (`heltec-v4`, and `heltec-v4-tft` if chosen)
 - [ ] Hardware test on two V4 boards
+- [ ] Run logger/dashboard against a real range test
 - [ ] Record plainly what remains untested
 
 ## Constraints

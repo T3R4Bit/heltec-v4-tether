@@ -9,6 +9,8 @@ A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3
 1. **Live link quality** between two nodes: continuous two-way RSSI/SNR, history, and fade margin, shown on the device and exportable.
 2. **Better power tracking**: smoothed battery readings, TX voltage sag, charge/solar detection, runtime estimate, optional true mA/mAh via an external INA219/226/260 on I2C.
 
+3. **Laptop logger and dashboard** (planned, `tools/`): `logger.py` saves everything a connected node hears (messages, GPS, signal) to a local SQLite database with timestamps and can send messages from the terminal. `dashboard.py` shows it live in a browser: node map, SNR over time, signal vs. distance, max distance reached, and message history with signal info. This turns a range test into real graphs and numbers instead of guesses.
+
 ## Hardware notes
 - PlatformIO envs: `heltec-v4` (OLED, SSD1306-compatible) and `heltec-v4-tft`.
 - Battery ADC: `BATTERY_PIN` 1, enable via `ADC_CTRL` 37. **No current sensor on the board**; real current needs an external INA part.
@@ -24,6 +26,7 @@ A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3
 ## Repo layout
 ```
 module/Tether/   module source, copied into a firmware checkout (empty for now)
+tools/           laptop-side logger.py and dashboard.py (planned, not created yet)
 docs/            design notes, open decisions
 scripts/         helper scripts (e.g. install module into a firmware checkout)
 PLANNED_FEATURES.md
