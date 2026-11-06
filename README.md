@@ -14,6 +14,13 @@ A Meshtastic firmware add-on module for the **Heltec WiFi LoRa 32 V4** (ESP32-S3
 3. **Laptop logger and dashboard** ([`tools/`](tools/README.md), tested on synthetic data only): `logger.py` saves everything a connected node hears (messages, GPS, signal) to a local SQLite database with timestamps and can send messages from the terminal. `dashboard.py` shows it live in a browser: node map, SNR over time, signal vs. distance, max distance reached, and message history with signal info. This turns a range test into real graphs and numbers instead of guesses.
 4. **Mobile web app** (built into the dashboard, not yet tried on a phone): the dashboard as a mobile-first PWA you can add to an iPhone Home Screen, self-hosted over LAN or Tailscale. No native iOS app.
 
+## What it looks like
+Both images below are rendered from **synthetic** data (`tools/synth.py`, labelled as such), not from a real test.
+
+| OLED layouts (pick one: [docs/OLED.md](docs/OLED.md)) | Dashboard on a phone ([tools/](tools/README.md)) |
+|---|---|
+| ![OLED layout candidates](docs/oled/sketches.png) | ![Dashboard, synthetic data](docs/screenshots/dashboard-mobile.png) |
+
 ## Hardware notes
 - Target env: `heltec-v4` (OLED, SSD1306-compatible). `heltec-v4-tft` exists upstream but is not targeted.
 - Battery ADC: `BATTERY_PIN` 1, enable via `ADC_CTRL` 37. **No current sensor on the board**; real current needs an external INA part.

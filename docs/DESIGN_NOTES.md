@@ -212,10 +212,12 @@ arrive as `LogRecord`s only if `security.debug_log_api_enabled` is on. The logge
 - The stock phone app shows nothing from port 256. All output goes to serial (later OLED/MQTT/PWA).
 - RAM-only stats. Nothing persists across reboot.
 
-## 9. Testing plan for Phase 1
+## 9. Testing
 
-1. **Host unit tests** (no hardware) for `TetherProtocol.h`, `TetherMath.h`, `TetherStats.h`: encode/decode round
-   trip, rejection of wrong magic/version/length, airtime vs the table above, margins, ring wrap, PDR, gap counting.
-2. **Compile** `heltec-v4` with the module installed; record flash/RAM delta against the stock build.
-3. **Hardware** (needs the two boards): flash both, favorite each other, confirm pings/replies on serial at the
-   expected interval, both directions populated, back-off on unplugging one antenna/board, no TX when gated.
+1. **Host unit tests** (no hardware, `python scripts/run_host_tests.py`, also in CI): `TetherProtocol.h`,
+   `TetherMath.h`, `TetherStats.h` (160 checks) and `TetherCanvas.h`, `TetherScreen.h`, `TetherGeo.h`, `TetherPower.h`
+   (73 checks). Clean under clang and GCC 14 with `-Wall -Wextra -Werror`.
+2. **Compile** `heltec-v4` with the module installed (`python scripts/build_firmware.py`); flash/RAM deltas in
+   [BUILD.md](BUILD.md). Done, no warnings from TETHER sources.
+3. **Hardware** (needs the two boards): [HARDWARE_TEST.md](HARDWARE_TEST.md). Not done yet. `TetherModule.cpp` (the
+   Meshtastic-facing glue: scheduling, send/receive, sniffer, OLED blit, GPS/power reads) is only covered here.
