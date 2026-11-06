@@ -1,0 +1,4 @@
+# Live logging from a real node. The dashboard, replay and tests need only the Python standard library.
+meshtastic>=2.7
+# Optional, for tools/tests/e2e_dashboard.py (browser test + screenshots):
+# playwright>=1.48

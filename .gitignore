@@ -3,3 +3,10 @@
 firmware/
 *.log
 .DS_Store
+__pycache__/
+*.pyc
+*.db
+*.db-wal
+*.db-shm
+*.lp
+synth*.jsonl
