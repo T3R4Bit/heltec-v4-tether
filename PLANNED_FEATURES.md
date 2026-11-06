@@ -43,29 +43,32 @@ run on a board yet**, so every item stays `[~]` until the two-board hardware tes
 - [ ] Optional INA219/226/260 coulomb counting (mA/mAh)
 
 ## Phase 4: Export and sweeps
-- [ ] Serial/MQTT lines in InfluxDB line protocol for Grafana (self-hosted)
-- [ ] Automated preset / TX-power sweep for range tests
+- [~] InfluxDB line protocol for Grafana (self-hosted): done **on the laptop side** (`logger.py --export-lp`), unit-tested
+  on synthetic data. Not emitted by the firmware itself, and no MQTT publishing from the firmware yet
+- [ ] Automated preset / TX-power sweep for range tests (not started: needs both nodes to switch radio settings in step,
+  which risks stranding them on different presets; wants hardware to develop against)
 
 ## Phase 4b: Laptop-side logger and dashboard (companion tools)
-Runs on a laptop connected to a node (serial/USB, or TCP). Separate from the firmware module; lives in `tools/`. Python, local SQLite, self-hosted only.
-- [ ] `logger.py`: record everything the connected node hears (messages, GPS/position updates, RSSI/SNR) into SQLite with timestamps
-- [ ] `logger.py`: send messages from the terminal
-- [ ] `dashboard.py`: live browser dashboard reading the same database
-  - [ ] Map of the remote node's position
-  - [ ] SNR (and RSSI) over time
-  - [ ] Signal vs. distance chart (the key range-test graph)
-  - [ ] Max distance reached
-  - [ ] Message history with signal info per message
-- [ ] Optionally ingest TETHER's port-256 link stats once Phase 1 exists, alongside normal traffic
-- [ ] Testable without hardware: replay a sample dataset, clearly labelled as synthetic
-- [ ] Screenshots / sample dataset from a real range test (only once actually run)
+Lives in [`tools/`](tools/README.md). Python, local SQLite, self-hosted. **Tested without hardware only**: 20 unit tests,
+synthetic replay, and a real-browser end-to-end test (headless Edge via Playwright, phone and desktop sizes, no JS
+errors). Nothing has been run against a real node yet, so items stay `[~]`.
+- [~] `logger.py`: record everything the connected node hears (messages, positions, RSSI/SNR, TETHER lines) into SQLite with timestamps (live path checked against the installed `meshtastic` 2.7.11 API, not run against a node)
+- [~] `logger.py`: send messages from the terminal (broadcast, `/dm !id text`)
+- [~] `dashboard.py`: live browser dashboard reading the same database
+  - [~] Map of the remote node's position (Leaflet vendored; OSM tiles need internet)
+  - [~] SNR and RSSI over time, both directions
+  - [~] Signal vs. distance chart
+  - [~] Max distance reached (only counts packets actually received)
+  - [~] Message history with signal info per message
+- [~] Ingest TETHER's link stats (`TETHER` log lines via `security.debug_log_api_enabled`)
+- [x] Testable without hardware: `tools/synth.py` generates a link-model dataset, replay marks it synthetic, dashboard shows a banner
+- [ ] Screenshots / sample dataset from a real range test (only once actually run; current screenshots are synthetic and say so)
 
 ## Phase 4c: Mobile web app (PWA)
-No native iOS app. The dashboard becomes a mobile-first PWA, self-hosted.
-- [ ] Mobile-first layout
-- [ ] Web app manifest and icons; add to iOS Home Screen
-- [ ] Served over LAN / Tailscale (no paid cloud)
-- [ ] Optional phone geolocation as a position source, matched to RSSI samples by timestamp
+- [~] Mobile-first layout (checked at 390 px wide in a real browser: no horizontal scroll)
+- [~] Web app manifest, icons, service worker; add to iOS Home Screen (files served and validated in tests; not tried on an iPhone)
+- [~] Served over LAN / Tailscale (`--host 0.0.0.0`, `tailscale serve`, optional `--cert/--key`); not tried over Tailscale
+- [~] Optional phone geolocation as a position source, matched to RSSI samples by timestamp (`POST /api/geo`, tested via HTTP; not tried on a phone)
 
 ## Phase 5: Verify
 - [ ] Compile with PlatformIO (`heltec-v4`)
